@@ -985,6 +985,21 @@ int usbd_device_set_pid(struct usbd_context *const uds_ctx,
 			const uint16_t pid);
 
 /**
+ * @brief Set USB device descriptor bcdDevice (device release number)
+ *
+ * HS2 local addition: upstream usbd_device_set_bcd() only sets bcdUSB. Some
+ * hosts (SDL joystick GUID / gamecontrollerdb) match on bcdDevice, so a cloned
+ * controller must present the real device's value.
+ *
+ * @param[in] uds_ctx    Pointer to USB device support context
+ * @param[in] bcd_device bcdDevice value (e.g. 0x0200)
+ *
+ * @return 0 on success, other values on fail.
+ */
+int usbd_device_set_bcd_device(struct usbd_context *const uds_ctx,
+			       const uint16_t bcd_device);
+
+/**
  * @brief Set USB device descriptor code triple Base Class, SubClass, and Protocol
  *
  * @param[in] uds_ctx    Pointer to USB device support context

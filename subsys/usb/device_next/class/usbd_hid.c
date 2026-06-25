@@ -83,6 +83,20 @@ static inline uint8_t hid_get_in_ep(struct usbd_class_data *const c_data)
 	struct hid_device_data *ddata = dev->data;
 	struct usbd_hid_descriptor *desc = ddata->desc;
 
+	/*
+	 * HS2 local fix: usbd_init() assigns endpoint addresses only to the
+	 * registered-speed descriptor. On a High-Speed device only hs_in_ep /
+	 * hs_out_ep get real addresses; the FS in_ep/out_ep keep the fixed
+	 * 0x81/0x01 template (HID_IN/OUT_EP_DEFINE). With multiple HID instances
+	 * the 2nd+ instance's HS endpoints differ from that template, so the
+	 * runtime path must read the endpoint of the *current* bus speed, not
+	 * the FS template, or it drives the wrong endpoint (e.g. a 2nd HID's OUT
+	 * is never armed). Upstream usbd_hid only ever reads the FS endpoint.
+	 */
+	if (usbd_bus_speed(usbd_class_get_ctx(c_data)) == USBD_SPEED_HS) {
+		return desc->hs_in_ep.bEndpointAddress;
+	}
+
 	return desc->in_ep.bEndpointAddress;
 }
 
@@ -91,6 +105,11 @@ static inline uint8_t hid_get_out_ep(struct usbd_class_data *const c_data)
 	const struct device *dev = usbd_class_get_private(c_data);
 	struct hid_device_data *ddata = dev->data;
 	struct usbd_hid_descriptor *desc = ddata->desc;
+
+	/* HS2 local fix: use the current bus speed's endpoint (see hid_get_in_ep). */
+	if (usbd_bus_speed(usbd_class_get_ctx(c_data)) == USBD_SPEED_HS) {
+		return desc->hs_out_ep.bEndpointAddress;
+	}
 
 	return desc->out_ep.bEndpointAddress;
 }

@@ -634,6 +634,27 @@ static int sreq_get_desc_str(struct usbd_context *const uds_ctx,
 	struct usbd_desc_node *d_nd;
 	size_t len;
 
+	/*
+	 * HS2 local patch: string index 0xEE is the Microsoft OS String
+	 * Descriptor ("MSFT100" + bMS_VendorCode). usbd assigns string indices
+	 * sequentially and cannot register 0xEE, so serve it here. This lets
+	 * Windows auto-bind xusb22.sys to the XInput vendor interface via the
+	 * XUSB10 compat ID (see app .../usbd_xinput.c). bMS_VendorCode 0x17 must
+	 * match XUSB_MS_VENDOR_CODE there.
+	 */
+	if (idx == 0xEEU) {
+		static const uint8_t ms_os_str[18] = {
+			0x12, 0x03,
+			'M', 0x00, 'S', 0x00, 'F', 0x00, 'T', 0x00,
+			'1', 0x00, '0', 0x00, '0', 0x00,
+			0x17, 0x00,
+		};
+
+		len = MIN(setup->wLength, net_buf_tailroom(buf));
+		net_buf_add_mem(buf, ms_os_str, MIN(len, sizeof(ms_os_str)));
+		return 0;
+	}
+
 	/* Get string descriptor */
 	d_nd = usbd_get_descriptor(uds_ctx, USB_DESC_STRING, idx);
 	if (d_nd == NULL) {
