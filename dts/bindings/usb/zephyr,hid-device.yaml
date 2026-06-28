@@ -29,6 +29,31 @@ properties:
       - keyboard
       - mouse
 
+  in-endpoint-address:
+    type: int
+    description: |
+      Preferred interrupt IN endpoint address. The device_next allocator tries
+      this endpoint first and falls back to the first compatible free endpoint
+      if the preferred address is unavailable.
+
+  out-endpoint-address:
+    type: int
+    description: |
+      Preferred interrupt OUT endpoint address. Only used when out-report-size
+      is defined.
+
+  interface-subclass:
+    type: int
+    description: |
+      Explicit HID interface subclass override. Use this when the desired
+      descriptor cannot be expressed by protocol-code alone.
+
+  interface-protocol:
+    type: int
+    description: |
+      Explicit HID interface protocol override. Use with interface-subclass
+      when reproducing a captured composite descriptor.
+
   in-report-size:
     type: int
     required: true

@@ -19,42 +19,74 @@ LOG_MODULE_REGISTER(usbd_init, CONFIG_USBD_LOG_LEVEL);
 
 /* TODO: Allow to disable automatic assignment of endpoint features */
 
+static int try_assign_ep_addr(const struct device *dev,
+			      struct usb_ep_descriptor *const ed,
+			      uint32_t *const config_ep_bm,
+			      uint32_t *const class_ep_bm,
+			      const uint8_t ep)
+{
+	uint16_t mps = ed->wMaxPacketSize;
+	uint8_t idx = USB_EP_GET_IDX(ep);
+	int ret;
+
+	if (idx == 0U || idx >= 16U) {
+		return -EINVAL;
+	}
+
+	if (usbd_ep_bm_is_set(config_ep_bm, ep) ||
+	    usbd_ep_bm_is_set(class_ep_bm, ep)) {
+		return -EADDRINUSE;
+	}
+
+	ret = udc_ep_try_config(dev, ep,
+				ed->bmAttributes, &mps,
+				ed->bInterval);
+
+	if (ret == 0) {
+		LOG_DBG("ep 0x%02x -> 0x%02x", ed->bEndpointAddress, ep);
+		ed->bEndpointAddress = ep;
+		ed->wMaxPacketSize = mps;
+		usbd_ep_bm_set(class_ep_bm, ed->bEndpointAddress);
+		usbd_ep_bm_set(config_ep_bm, ed->bEndpointAddress);
+	}
+
+	return ret;
+}
+
 /* Assign endpoint address and update wMaxPacketSize */
 static int assign_ep_addr(const struct device *dev,
 			  struct usb_ep_descriptor *const ed,
 			  uint32_t *const config_ep_bm,
 			  uint32_t *const class_ep_bm)
 {
+	const uint8_t preferred_ep = ed->bEndpointAddress;
+	const uint8_t preferred_idx = USB_EP_GET_IDX(preferred_ep);
+	const uint8_t dir = USB_EP_GET_DIR(preferred_ep);
 	int ret = -ENODEV;
 
-	for (unsigned int idx = 1; idx < 16U; idx++) {
-		uint16_t mps = ed->wMaxPacketSize;
-		uint8_t ep;
-
-		if (USB_EP_DIR_IS_IN(ed->bEndpointAddress)) {
-			ep = USB_EP_DIR_IN | idx;
-		} else {
-			ep = idx;
+	if (preferred_idx != 0U) {
+		ret = try_assign_ep_addr(dev, ed, config_ep_bm,
+					 class_ep_bm, preferred_ep);
+		if (ret == 0) {
+			return 0;
 		}
+	}
 
-		if (usbd_ep_bm_is_set(config_ep_bm, ep) ||
-		    usbd_ep_bm_is_set(class_ep_bm, ep)) {
+	for (unsigned int idx = 1; idx < 16U; idx++) {
+		uint8_t ep = USB_EP_GET_ADDR(idx, dir);
+
+		if (idx == preferred_idx) {
 			continue;
 		}
 
-
-		ret = udc_ep_try_config(dev, ep,
-					ed->bmAttributes, &mps,
-					ed->bInterval);
-
+		ret = try_assign_ep_addr(dev, ed, config_ep_bm,
+					 class_ep_bm, ep);
 		if (ret == 0) {
-			LOG_DBG("ep 0x%02x -> 0x%02x", ed->bEndpointAddress, ep);
-			ed->bEndpointAddress = ep;
-			ed->wMaxPacketSize = mps;
-			usbd_ep_bm_set(class_ep_bm, ed->bEndpointAddress);
-			usbd_ep_bm_set(config_ep_bm, ed->bEndpointAddress);
-
 			return 0;
+		}
+
+		if (ret == -EADDRINUSE) {
+			ret = -ENODEV;
 		}
 	}
 
