@@ -174,14 +174,12 @@ usbd_class_get_by_ep(struct usbd_context *const uds_ctx,
 	return NULL;
 }
 
-struct usbd_class_node *
-usbd_class_get_by_req(struct usbd_context *const uds_ctx,
-		      const uint8_t request)
+static struct usbd_class_node *
+usbd_class_find_by_req(struct usbd_config_node *const cfg_nd,
+		       const uint8_t request)
 {
-	struct usbd_config_node *cfg_nd;
 	struct usbd_class_node *c_nd;
 
-	cfg_nd = usbd_config_get_current(uds_ctx);
 	if (cfg_nd == NULL) {
 		return NULL;
 	}
@@ -192,10 +190,6 @@ usbd_class_get_by_req(struct usbd_context *const uds_ctx,
 		}
 
 		for (int i = 0; i < c_nd->c_data->v_reqs->len; i++) {
-			/*
-			 * First instance always wins.
-			 * There is no other way to determine the recipient.
-			 */
 			if (c_nd->c_data->v_reqs->reqs[i] == request) {
 				return c_nd;
 			}
@@ -203,6 +197,29 @@ usbd_class_get_by_req(struct usbd_context *const uds_ctx,
 	}
 
 	return NULL;
+}
+
+struct usbd_class_node *
+usbd_class_get_by_req(struct usbd_context *const uds_ctx,
+		      const uint8_t request)
+{
+	struct usbd_config_node *cfg_nd;
+
+	if (usbd_state_is_configured(uds_ctx)) {
+		cfg_nd = usbd_config_get_current(uds_ctx);
+		return usbd_class_find_by_req(cfg_nd, request);
+	}
+
+	/*
+	 * Some device-level vendor requests are sent before SET_CONFIGURATION.
+	 * Microsoft OS descriptor probing is one example: Windows reads string
+	 * 0xEE, then asks for the Extended Compat ID while the device may still
+	 * be in Address state. The request still belongs to a class registered in
+	 * the advertised configuration, so fall back to config 1 at the current
+	 * bus speed when no current configuration exists yet.
+	 */
+	cfg_nd = usbd_config_get(uds_ctx, usbd_bus_speed(uds_ctx), 1);
+	return usbd_class_find_by_req(cfg_nd, request);
 }
 
 static struct usbd_class_node *
