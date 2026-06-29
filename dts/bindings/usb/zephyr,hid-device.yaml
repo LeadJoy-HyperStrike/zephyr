@@ -29,6 +29,29 @@ properties:
       - keyboard
       - mouse
 
+  interface-subclass:
+    type: int
+    description: |
+      Optional explicit HID interface subclass. When absent, the HID class uses
+      the subclass implied by protocol-code.
+
+  interface-protocol:
+    type: int
+    description: |
+      Optional explicit HID interface protocol. When absent, the HID class uses
+      the protocol implied by protocol-code.
+
+  in-endpoint-address:
+    type: int
+    description: |
+      Optional preferred interrupt IN endpoint address.
+
+  out-endpoint-address:
+    type: int
+    description: |
+      Optional preferred interrupt OUT endpoint address. This option is only
+      effective if the out-report-size property is defined.
+
   in-report-size:
     type: int
     required: true

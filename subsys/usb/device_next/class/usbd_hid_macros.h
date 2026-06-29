@@ -1075,11 +1075,15 @@
  * Either the device does not support a boot protocol, or it supports the
  * keyboard or mouse boot protocol.
  */
-#define HID_INTERFACE_PROTOCOL(n) DT_INST_ENUM_IDX_OR(n, protocol_code, 0)
+#define HID_INTERFACE_PROTOCOL_DEFAULT(n) DT_INST_ENUM_IDX_OR(n, protocol_code, 0)
+#define HID_INTERFACE_PROTOCOL(n)						\
+	DT_INST_PROP_OR(n, interface_protocol, HID_INTERFACE_PROTOCOL_DEFAULT(n))
 
 /* bInterfaceSubClass must be set to 1 if a boot device protocol is supported */
+#define HID_INTERFACE_SUBCLASS_DEFAULT(n)					\
+	COND_CODE_0(HID_INTERFACE_PROTOCOL_DEFAULT(n), (0), (1))
 #define HID_INTERFACE_SUBCLASS(n)						\
-	COND_CODE_0(HID_INTERFACE_PROTOCOL(n), (0), (1))
+	DT_INST_PROP_OR(n, interface_subclass, HID_INTERFACE_SUBCLASS_DEFAULT(n))
 
 #define HID_INTERFACE_DEFINE(n, alt)						\
 	{									\
@@ -1129,7 +1133,7 @@
 	{									\
 		.bLength = sizeof(struct usb_ep_descriptor),			\
 		.bDescriptorType = USB_DESC_ENDPOINT,				\
-		.bEndpointAddress = 0x01,					\
+		.bEndpointAddress = DT_INST_PROP_OR(n, out_endpoint_address, 0x01), \
 		.bmAttributes = USB_EP_TYPE_INTERRUPT,				\
 		.wMaxPacketSize = HID_OUT_EP_MPS(n, alt),			\
 		.bInterval = HID_OUT_EP_INTERVAL(n, hs),			\
@@ -1139,7 +1143,7 @@
 	{									\
 		.bLength = sizeof(struct usb_ep_descriptor),			\
 		.bDescriptorType = USB_DESC_ENDPOINT,				\
-		.bEndpointAddress = 0x81,					\
+		.bEndpointAddress = DT_INST_PROP_OR(n, in_endpoint_address, 0x81), \
 		.bmAttributes = USB_EP_TYPE_INTERRUPT,				\
 		.wMaxPacketSize = HID_IN_EP_MPS(n, alt),			\
 		.bInterval = HID_IN_EP_INTERVAL(n, hs),				\
