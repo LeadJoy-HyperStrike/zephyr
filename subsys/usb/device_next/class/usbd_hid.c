@@ -114,6 +114,17 @@ static inline uint8_t hid_get_out_ep(struct usbd_class_data *const c_data)
 	return desc->out_ep.bEndpointAddress;
 }
 
+uint8_t hid_device_get_in_ep(const struct device *dev)
+{
+	struct hid_device_data *const ddata = dev->data;
+
+	/* HS2 local addition: expose the active-speed IN endpoint address so
+	 * the application can hand this interface's stream endpoint to the
+	 * UDC fast path. Valid only while the interface is enabled.
+	 */
+	return hid_get_in_ep(ddata->c_data);
+}
+
 static int usbd_hid_request(struct usbd_class_data *const c_data,
 			    struct net_buf *const buf, const int err)
 {

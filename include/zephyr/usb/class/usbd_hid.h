@@ -210,6 +210,20 @@ int hid_device_submit_report(const struct device *dev,
 			     const uint16_t size, const uint8_t *const report);
 
 /**
+ * @brief Get the active-speed interrupt IN endpoint address
+ *
+ * HS2 local addition: returns the IN endpoint address of the current bus
+ * speed's descriptor so the application can claim this interface's stream
+ * endpoint on a vendor UDC fast path. Only valid while the interface is
+ * enabled (iface_ready).
+ *
+ * @param[in] dev Pointer to HID device
+ *
+ * @return Endpoint address (0x8n)
+ */
+uint8_t hid_device_get_in_ep(const struct device *dev);
+
+/**
  * @}
  */
 
