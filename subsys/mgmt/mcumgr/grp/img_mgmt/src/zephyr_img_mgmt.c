@@ -492,6 +492,35 @@ int img_mgmt_erase_image_data(unsigned int off, unsigned int num_bytes)
 
 	/* erase the image trailer area if it was not erased */
 	off = boot_get_trailer_status_offset(fa->fa_size);
+	/*
+	 * boot_get_trailer_status_offset() only backs off by magic + two flag
+	 * words. That is the END of the trailer, not its start: with
+	 * swap-using-scratch the swap-status array sits in front of it and is
+	 * BOOT_MAX_IMG_SECTORS * 3 * write-size long -- 0x1800 on this part
+	 * (512 sectors, 4-byte writes), which spills into the sector BEFORE the
+	 * one this offset lands in. Erasing from here therefore left that
+	 * sector alone, and the swap-status entries a previous swap had written
+	 * there survived into the next upload. MCUboot then resumed the new swap
+	 * from a stale index, and the primary slot came out corrupt.
+	 *
+	 * Seen 2026-08-27 on hs2prod: the first OTA onto a factory-fresh slot
+	 * worked (nothing to leave behind), every subsequent one failed with
+	 * "Image in the primary slot is not valid!" and so did its revert.
+	 *
+	 * Back the erase start off by the largest trailer any supported swap
+	 * mode can need, then align down to a page. Erasing more of an already
+	 * image-free tail costs nothing; erasing too little costs the slot.
+	 */
+	{
+		const size_t worst_trailer =
+			(size_t)CONFIG_MCUMGR_GRP_IMG_TRAILER_MAX_SECTORS * 3U *
+				flash_get_write_block_size(dev) +
+			BOOT_MAGIC_SZ + BOOT_MAX_ALIGN * 4U + 64U;
+
+		if (worst_trailer < fa->fa_size) {
+			off = fa->fa_size - worst_trailer;
+		}
+	}
 	if (off >= erase_size) {
 		rc = flash_get_page_info_by_offs(dev, fa->fa_off + off, &page);
 
