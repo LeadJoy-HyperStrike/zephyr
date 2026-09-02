@@ -521,8 +521,25 @@ int img_mgmt_erase_image_data(unsigned int off, unsigned int num_bytes)
 			off = fa->fa_size - worst_trailer;
 		}
 	}
-	if (off >= erase_size) {
+	/*
+	 * Upstream skipped the trailer erase whenever the body erase had
+	 * already reached the (one-page) trailer offset. With the window
+	 * backed off to several pages that shortcut is wrong: a body ending
+	 * inside the window would leave the pages past it -- magic, flags and
+	 * the tail of the status array -- untouched. Erase whatever of the
+	 * window the body erase did not cover, which may be nothing.
+	 */
+	if (off < erase_size) {
+		off = erase_size;
+	}
+	if (off < fa->fa_size) {
 		rc = flash_get_page_info_by_offs(dev, fa->fa_off + off, &page);
+		if (rc != 0) {
+			LOG_ERR("bad trailer offset (0x%lx)",
+				(long)(fa->fa_off + off));
+			rc = IMG_MGMT_ERR_INVALID_PAGE_OFFSET;
+			goto end_fa;
+		}
 
 		off = page.start_offset - fa->fa_off;
 		erase_size = fa->fa_size - off;
