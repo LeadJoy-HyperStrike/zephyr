@@ -185,18 +185,6 @@ config MCUMGR_GRP_IMG_TOO_LARGE_BOOTLOADER_INFO
 
 endchoice
 
-config MCUMGR_GRP_IMG_TRAILER_MAX_SECTORS
-	int "Largest BOOT_MAX_IMG_SECTORS the bootloader may be built with"
-	default 512
-	help
-	  Upper bound on MCUboot's BOOT_MAX_IMG_SECTORS, used to size the
-	  trailer erase that precedes an image upload. The swap-status array is
-	  this many entries times three times the flash write size, and it lives
-	  immediately before the trailer magic. Erasing less than that leaves a
-	  previous swap's status behind, which MCUboot then resumes from. Set it
-	  to at least the bootloader's real value; larger only erases more of an
-	  already image-free tail.
-
 module = MCUMGR_GRP_IMG
 module-str = mcumgr_grp_img
 source "subsys/logging/Kconfig.template.log_config"
