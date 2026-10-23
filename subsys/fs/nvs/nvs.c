@@ -1129,7 +1129,20 @@ no_cached_entry:
 		} else if (len + NVS_DATA_CRC_SIZE == wlk_ate.len) {
 			/* do not try to compare if lengths are not equal */
 			/* compare the data and if equal return 0 */
-			rc = nvs_flash_block_cmp(fs, rd_addr, data, len + NVS_DATA_CRC_SIZE);
+			/* Caller supplies exactly len payload bytes, NOT an appended CRC.
+			 * Comparing len+4 reads past its buffer and prevents duplicate
+			 * suppression with DATA_CRC. Validate the stored CRC separately,
+			 * so a corrupted CRC is rewritten rather than treated as equal. */
+			rc = nvs_flash_block_cmp(fs, rd_addr, data, len);
+#ifdef CONFIG_NVS_DATA_CRC
+			if (rc == 0) {
+				uint32_t stored_crc;
+				rc = nvs_flash_rd(fs, rd_addr + len, &stored_crc, sizeof(stored_crc));
+				if (rc == 0 && stored_crc != crc32_ieee(data, len)) {
+					rc = 1;
+				}
+			}
+#endif
 			if (rc <= 0) {
 				return rc;
 			}

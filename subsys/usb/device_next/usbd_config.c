@@ -81,13 +81,24 @@ static int usbd_config_reset(struct usbd_context *const uds_ctx)
 		return -ENODATA;
 	}
 
+#if defined(CONFIG_HS2_SINGLECORE)
+	/* HPM51 can switch modes from preemptible control context. Endpoint
+	 * dequeue yields and delivers aborted OUT requests; HID then schedules
+	 * its receive work. Mark classes disabled FIRST so that work cannot
+	 * re-arm a just-closed endpoint before the next USB configuration.
+	 * Otherwise its software busy/FIFO survives the hardware reset and
+	 * the reused config interface stops receiving after a mode switch. */
+	usbd_config_classes_enable(cfg_nd, false);
+#endif
 	ret = usbd_interface_shutdown(uds_ctx, cfg_nd);
 
 	memset(&uds_ctx->ch9_data.alternate, 0,
 	       USBD_NUMOF_INTERFACES_MAX);
 
 	usbd_set_config_value(uds_ctx, 0);
+#if !defined(CONFIG_HS2_SINGLECORE)
 	usbd_config_classes_enable(cfg_nd, false);
+#endif
 
 	return ret;
 }
