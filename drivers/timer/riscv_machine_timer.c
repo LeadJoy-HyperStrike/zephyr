@@ -172,7 +172,17 @@ static void timer_isr(const void *arg)
 
 	uint64_t now = mtime();
 	uint64_t dcycles = now - last_count;
+#if defined(CONFIG_SOC_SERIES_HPM5100)
+	/* On HPM5151 we observed a later MTIME read below the last announced
+	 * boundary (e.g. 362652260 < 362664000). Casting that negative delta to
+	 * RV32 unsigned long reports 178956 ms and corrupts timeout deadlines.
+	 * Hold the announced boundary until the counter catches up: no busy
+	 * wait, backward tick announcement, or fabricated wrap interval.
+	 * Preserve other SoCs' timer instruction paths. */
+	uint32_t dticks = now < last_count ? 0u : (cycle_diff_t)dcycles / CYC_PER_TICK;
+#else
 	uint32_t dticks = (cycle_diff_t)dcycles / CYC_PER_TICK;
+#endif
 
 	last_count += (cycle_diff_t)dticks * CYC_PER_TICK;
 	last_ticks += dticks;
@@ -221,7 +231,17 @@ uint32_t sys_clock_elapsed(void)
 	k_spinlock_key_t key = k_spin_lock(&lock);
 	uint64_t now = mtime();
 	uint64_t dcycles = now - last_count;
+#if defined(CONFIG_SOC_SERIES_HPM5100)
+	/* On HPM5151 we observed a later MTIME read below the last announced
+	 * boundary (e.g. 362652260 < 362664000). Casting that negative delta to
+	 * RV32 unsigned long reports 178956 ms and corrupts timeout deadlines.
+	 * Hold the announced boundary until the counter catches up: no busy
+	 * wait, backward tick announcement, or fabricated wrap interval.
+	 * Preserve other SoCs' timer instruction paths. */
+	uint32_t dticks = now < last_count ? 0u : (cycle_diff_t)dcycles / CYC_PER_TICK;
+#else
 	uint32_t dticks = (cycle_diff_t)dcycles / CYC_PER_TICK;
+#endif
 
 	last_elapsed = dticks;
 	k_spin_unlock(&lock, key);
