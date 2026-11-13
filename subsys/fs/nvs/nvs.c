@@ -938,6 +938,14 @@ static int nvs_startup(struct nvs_fs *fs)
 
 		fs->data_wra += fs->flash_parameters->write_block_size;
 	}
+	/* HS2 (2026-11-12): the loop above can run out with rc == 1 - data that
+	 * has no ATE reaching right up to the next free ATE slot, which is what a
+	 * power cut leaves when it hits the ATE write of an entry that filled the
+	 * sector exactly. data_wra == ate_wra then: a full sector, not an error.
+	 * Left as it was, nvs_mount() returned 1 on every boot from then on and
+	 * the settings could neither be read nor written.
+	 */
+	rc = 0;
 
 	/* If the ate_wra is pointing to the first ate write location in a
 	 * sector and data_wra is not 0, erase the sector as it contains no
